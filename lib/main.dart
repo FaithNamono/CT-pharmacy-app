@@ -1,5 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'providers/auth_provider.dart';
+import 'providers/product_provider.dart';
+import 'providers/dashboard_provider.dart';
+import 'utils/app_theme.dart';
 import 'screens/splash_screen.dart';
+import 'screens/auth/login_screen.dart';
+import 'screens/auth/register_screen.dart';
+import 'screens/auth/forgot_password_screen.dart';
+import 'screens/auth/otp_verification_screen.dart';
+import 'screens/home_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -10,23 +20,26 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'CT Pharmacy',
-      theme: ThemeData(
-        primaryColor: const Color(0xFF27AE60), // Main green color for the app
-        colorScheme: ColorScheme.fromSwatch().copyWith(
-          primary: const Color(0xFF27AE60),
-          secondary: const Color(0xFF2ECC71), // Lighter green for accents
-        ),
-        fontFamily: 'Roboto',
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF27AE60), // Green app bar
-          elevation: 0, // Remove shadow
-          centerTitle: false,
-        ),
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => ProductProvider()),
+        ChangeNotifierProvider(create: (_) => DashboardProvider()),
+      ],
+      child: MaterialApp(
+        title: 'CT Pharmacy',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.lightTheme,
+        initialRoute: '/',
+        routes: {
+          '/': (context) => const SplashScreen(),
+          '/login': (context) => const LoginScreen(),
+          '/register': (context) => const RegisterScreen(),
+          '/forgot-password': (context) => const ForgotPasswordScreen(),
+          '/otp-verification': (context) => const OTPVerificationScreen(email: ''),
+          '/home': (context) => const HomeScreen(),
+        },
       ),
-      home: const SplashScreen(), // App starts with splash screen
-      debugShowCheckedModeBanner: false, // Remove debug banner
     );
   }
 }

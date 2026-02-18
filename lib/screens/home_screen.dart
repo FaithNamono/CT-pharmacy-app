@@ -1,4 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/auth_provider.dart';
+import '../providers/dashboard_provider.dart';
+import '../providers/product_provider.dart';
+import '../utils/constants.dart';
+import '../utils/helpers.dart';
+import '../widgets/loading_widget.dart';
+import 'inventory/inventory_screen.dart';
+import 'sales/pos_screen.dart';
+import 'prescriptions/prescriptions_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -8,173 +18,334 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _currentIndex = 0; // Tracks which tab is selected
+  int _currentIndex = 0;
 
-  // List of screens for each tab
-  final List<Widget> _screens = [
-    const DashboardScreen(), // Tab 0 - Dashboard
-    const InventoryScreen(), // Tab 1 - Inventory
-    const SalesScreen(),     // Tab 2 - Sales
-    const PrescriptionScreen(), // Tab 3 - Prescriptions
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    final dashboardProvider = Provider.of<DashboardProvider>(context, listen: false);
+    final productProvider = Provider.of<ProductProvider>(context, listen: false);
+    
+    await Future.wait([
+      dashboardProvider.loadDashboard(),
+      productProvider.loadProducts(refresh: true),
+      productProvider.loadStats(),
+      dashboardProvider.loadSalesChart(),
+    ]);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final dashboardProvider = Provider.of<DashboardProvider>(context);
+    final authProvider = Provider.of<AuthProvider>(context);
+
+    final List<Widget> screens = [
+      DashboardScreen(dashboardData: dashboardProvider.dashboardData),
+      const InventoryScreen(),
+      const POSScreen(),
+      const PrescriptionsScreen(),
+    ];
+
     return Scaffold(
-      backgroundColor: Colors.grey[50], // Light grey background
+      backgroundColor: AppColors.lightGrey,
       appBar: AppBar(
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.medical_services, color: Colors.white), // Pharmacy icon
-            SizedBox(width: 8), // Spacing between icon and text
-            Text(
-              'CT Pharmacy',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: AppColors.white.withOpacity(0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.medical_services,
+                color: AppColors.white,
+                size: 18,
+              ),
+            ),
+            const SizedBox(width: 8),
+            RichText(
+              text: const TextSpan(
+                children: [
+                  TextSpan(
+                    text: 'CT ',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
+                  ),
+                  TextSpan(
+                    text: 'Pharmacy',
+                    style: TextStyle(
+                      fontSize: 18,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
         ),
-        backgroundColor: const Color(0xFF27AE60), // Green app bar
-        elevation: 0, // Remove shadow
-        centerTitle: false, // Align left
         actions: [
-          // Notification icon
           IconButton(
-            icon: const Icon(Icons.notifications_outlined),
+            icon: Stack(
+              children: [
+                const Icon(Icons.notifications_outlined),
+                // Notification badge
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: AppColors.warningRed,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+              ],
+            ),
             onPressed: () {
-              // TODO: Implement notifications
+              // TODO: Show notifications
             },
-            tooltip: 'Notifications',
           ),
-          // Profile icon
-          IconButton(
+          PopupMenuButton<String>(
             icon: const Icon(Icons.person_outline),
-            onPressed: () {
-              // TODO: Implement profile
+            onSelected: (value) async {
+              if (value == 'logout') {
+                await authProvider.logout();
+                if (mounted) {
+                  Navigator.pushReplacementNamed(context, '/login');
+                }
+              } else if (value == 'profile') {
+                // TODO: Show profile
+              }
             },
-            tooltip: 'Profile',
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: 'profile',
+                child: Row(
+                  children: [
+                    const Icon(Icons.person, size: 18, color: AppColors.primaryGreen),
+                    const SizedBox(width: 8),
+                    Text(
+                      authProvider.user?.name ?? 'Profile',
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'settings',
+                child: Row(
+                  children: [
+                    Icon(Icons.settings, size: 18, color: AppColors.primaryGreen),
+                    SizedBox(width: 8),
+                    Text('Settings'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'logout',
+                child: Row(
+                  children: [
+                    Icon(Icons.logout, size: 18, color: AppColors.warningRed),
+                    SizedBox(width: 8),
+                    Text('Logout'),
+                  ],
+                ),
+              ),
+            ],
           ),
         ],
       ),
-      body: _screens[_currentIndex], // Show current screen based on selected tab
-      bottomNavigationBar: _buildBottomNavigationBar(), // Navigation bar at bottom
+      body: dashboardProvider.isLoading
+          ? const Center(child: LoadingWidget())
+          : screens[_currentIndex],
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        onTap: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+        },
+        type: BottomNavigationBarType.fixed,
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.dashboard_outlined),
+            activeIcon: Icon(Icons.dashboard),
+            label: 'Dashboard',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.inventory_2_outlined),
+            activeIcon: Icon(Icons.inventory_2),
+            label: 'Inventory',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.point_of_sale_outlined),
+            activeIcon: Icon(Icons.point_of_sale),
+            label: 'POS',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.medical_services_outlined),
+            activeIcon: Icon(Icons.medical_services),
+            label: 'Prescriptions',
+          ),
+        ],
+      ),
       floatingActionButton: _currentIndex == 2 
           ? FloatingActionButton(
               onPressed: () {
-                _startNewSale(); // Start new sale when FAB pressed
+                // TODO: Start new sale
               },
-              backgroundColor: const Color(0xFF27AE60), // Green FAB
-              child: const Icon(Icons.add, color: Colors.white), // Plus icon
+              child: const Icon(Icons.add),
             )
-          : null, // Only show FAB on Sales tab
-    );
-  }
-
-  void _startNewSale() {
-    print('Starting new sale...'); // TODO: Implement new sale functionality
-  }
-
-  // Build the bottom navigation bar
-  BottomNavigationBar _buildBottomNavigationBar() {
-    return BottomNavigationBar(
-      currentIndex: _currentIndex, // Currently selected tab
-      onTap: (index) {
-        setState(() {
-          _currentIndex = index; // Update selected tab when user taps
-        });
-      },
-      type: BottomNavigationBarType.fixed, // All tabs visible
-      backgroundColor: Colors.white, // White background
-      selectedItemColor: const Color(0xFF27AE60), // Green selected tab
-      unselectedItemColor: Colors.grey[600], // Grey unselected tabs
-      selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w600), // Bold selected label
-      elevation: 4, // Shadow
-      items: const [
-        BottomNavigationBarItem(
-          icon: Icon(Icons.dashboard_outlined),
-          activeIcon: Icon(Icons.dashboard),
-          label: 'Dashboard',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.inventory_2_outlined),
-          activeIcon: Icon(Icons.inventory_2),
-          label: 'Inventory',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.point_of_sale_outlined),
-          activeIcon: Icon(Icons.point_of_sale),
-          label: 'POS',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.medical_services_outlined),
-          activeIcon: Icon(Icons.medical_services),
-          label: 'Prescriptions',
-        ),
-      ],
+          : _currentIndex == 1
+              ? FloatingActionButton(
+                  onPressed: () {
+                    // TODO: Add new product
+                  },
+                  child: const Icon(Icons.add),
+                )
+              : null,
     );
   }
 }
 
-// Dashboard Screen - Main home screen
+// Dashboard Screen
 class DashboardScreen extends StatelessWidget {
-  const DashboardScreen({Key? key}) : super(key: key);
+  final Map<String, dynamic>? dashboardData;
+
+  const DashboardScreen({Key? key, this.dashboardData}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start, // Align left
-        children: [
-          _buildWelcomeCard(), // Welcome card at top
-          const SizedBox(height: 24), // Spacing
-          const Text(
-            'Quick Overview',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF2C3E50), // Dark text
+    final authProvider = Provider.of<AuthProvider>(context);
+    final dashboardProvider = Provider.of<DashboardProvider>(context);
+
+    return RefreshIndicator(
+      onRefresh: dashboardProvider.refreshDashboard,
+      color: AppColors.primaryGreen,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(AppSizes.paddingMedium),
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Welcome Card
+            _buildWelcomeCard(authProvider.user?.name ?? 'Pharmacist'),
+            const SizedBox(height: 24),
+
+            // Quick Stats
+            const Text(
+              'Quick Overview',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: AppColors.darkText,
+              ),
             ),
-          ),
-          const SizedBox(height: 16), // Spacing
-          _buildStatsGrid(), // Statistics cards grid
-          const SizedBox(height: 24), // Spacing
-          const Text(
-            'Quick Actions',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF2C3E50),
+            const SizedBox(height: 16),
+
+            // Stats Grid
+            GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 1.5,
+              children: [
+                _buildStatCard(
+                  'Today\'s Sales',
+                  'UGX ${Helpers.formatNumber(dashboardProvider.todaySales)}',
+                  Icons.attach_money_rounded,
+                  AppColors.primaryGreen,
+                  '${dashboardProvider.todaySalesCount} transactions',
+                ),
+                _buildStatCard(
+                  'Total Products',
+                  '${dashboardProvider.totalProducts}',
+                  Icons.inventory_2_rounded,
+                  AppColors.infoBlue,
+                  '${dashboardProvider.lowStockCount} low stock',
+                ),
+                _buildStatCard(
+                  'Pending Rx',
+                  '${dashboardProvider.pendingPrescriptions}',
+                  Icons.medical_services,
+                  AppColors.warningOrange,
+                  'need attention',
+                ),
+                _buildStatCard(
+                  'Expiring Soon',
+                  '${dashboardProvider.expiringSoonCount}',
+                  Icons.calendar_today_rounded,
+                  AppColors.warningRed,
+                  'Next 30 days',
+                ),
+              ],
             ),
-          ),
-          const SizedBox(height: 16), // Spacing
-          _buildQuickActions(), // Quick action buttons grid
-          const SizedBox(height: 24), // Spacing
-          _buildRecentActivity(), // Recent activity list
-        ],
+
+            const SizedBox(height: 24),
+
+            // Quick Actions
+            const Text(
+              'Quick Actions',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: AppColors.darkText,
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Action Grid
+            GridView.count(
+              crossAxisCount: 4,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+              children: [
+                _buildActionItem('New Sale', Icons.point_of_sale_rounded, AppColors.primaryGreen),
+                _buildActionItem('Add Product', Icons.add_circle_outline_rounded, AppColors.infoBlue),
+                _buildActionItem('Stock Check', Icons.search_rounded, AppColors.warningOrange),
+                _buildActionItem('Reports', Icons.analytics_rounded, AppColors.warningRed),
+              ],
+            ),
+
+            const SizedBox(height: 24),
+
+            // Recent Activity
+            _buildRecentActivity(dashboardProvider.recentSales),
+          ],
+        ),
       ),
     );
   }
 
-  // Welcome card with gradient background
-  Widget _buildWelcomeCard() {
+  Widget _buildWelcomeCard(String userName) {
     return Container(
-      width: double.infinity, // Full width
+      width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF27AE60), Color(0xFF219653)], // Green gradient
+          colors: [AppColors.primaryGreen, AppColors.darkGreen],
         ),
-        borderRadius: BorderRadius.circular(16), // Rounded corners
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.green.withOpacity(0.3), // Green shadow
+            color: AppColors.primaryGreen.withOpacity(0.3),
             blurRadius: 10,
-            offset: const Offset(0, 4), // Shadow position
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -185,27 +356,27 @@ class DashboardScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Welcome to',
+                  'Welcome back,',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: AppColors.white,
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                const SizedBox(height: 4), // Small spacing
-                const Text(
-                  'Credibal Therauptics',
-                  style: TextStyle(
-                    color: Colors.white,
+                const SizedBox(height: 4),
+                Text(
+                  userName,
+                  style: const TextStyle(
+                    color: AppColors.white,
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 8), // Spacing
-                Text(
-                  'Manage your pharmacy efficiently',
+                const SizedBox(height: 8),
+                const Text(
+                  AppStrings.tagline,
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.9), // Semi-transparent white
+                    color: AppColors.white,
                     fontSize: 14,
                   ),
                 ),
@@ -215,12 +386,12 @@ class DashboardScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2), // Semi-transparent white circle
+              color: AppColors.white.withOpacity(0.2),
               shape: BoxShape.circle,
             ),
             child: const Icon(
               Icons.medical_services,
-              color: Colors.white,
+              color: AppColors.white,
               size: 30,
             ),
           ),
@@ -229,93 +400,50 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  // Grid of statistics cards
-  Widget _buildStatsGrid() {
-    return GridView.count(
-      crossAxisCount: 2, // 2 cards per row
-      shrinkWrap: true, // Only take needed space
-      physics: const NeverScrollableScrollPhysics(), // Prevent scrolling inside grid
-      crossAxisSpacing: 12, // Horizontal spacing between cards
-      mainAxisSpacing: 12, // Vertical spacing between cards
-      children: [
-        _buildStatCard(
-          'Today\'s Sales',
-          'UGX 285,000',
-          Icons.attach_money_rounded,
-          const Color(0xFF27AE60), // Green
-          '+12% from yesterday',
-        ),
-        _buildStatCard(
-          'Total Products',
-          '142',
-          Icons.inventory_2_rounded,
-          const Color(0xFF3498DB), // Blue
-          '8 low in stock',
-        ),
-        _buildStatCard(
-          'Pending Rx',
-          '7',
-          Icons.medical_services,
-          const Color(0xFF9B59B6), // Purple
-          '3 need attention',
-        ),
-        _buildStatCard(
-          'Expiring Soon',
-          '5 Items',
-          Icons.calendar_today_rounded,
-          const Color(0xFFE74C3C), // Red
-          'Next 30 days',
-        ),
-      ],
-    );
-  }
-
-  // Individual statistic card
   Widget _buildStatCard(String title, String value, IconData icon, Color color, String subtitle) {
     return Card(
-      elevation: 2, // Shadow
+      elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.1), // Light background for icon
+                    color: color.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(icon, color: color, size: 20),
+                  child: Icon(icon, color: color, size: 16),
                 ),
               ],
             ),
-            const SizedBox(height: 12), // Spacing
+            const SizedBox(height: 8),
             Text(
               value,
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF2C3E50), // Dark text
+                color: AppColors.darkText,
               ),
             ),
-            const SizedBox(height: 4), // Small spacing
             Text(
               title,
               style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600], // Grey text
+                fontSize: 12,
+                color: AppColors.darkGrey,
               ),
             ),
-            const SizedBox(height: 4), // Small spacing
             Text(
               subtitle,
               style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[500], // Light grey text
+                fontSize: 10,
+                color: AppColors.darkGrey.withOpacity(0.7),
               ),
             ),
           ],
@@ -324,81 +452,49 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  // Grid of quick action buttons
-  Widget _buildQuickActions() {
-    return GridView.count(
-      crossAxisCount: 2, // 2 buttons per row
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 12,
-      mainAxisSpacing: 12,
-      children: [
-        _buildActionCard(
-          'New Sale',
-          Icons.point_of_sale_rounded,
-          const Color(0xFF27AE60), // Green
-        ),
-        _buildActionCard(
-          'Add Product',
-          Icons.add_circle_outline_rounded,
-          const Color(0xFF3498DB), // Blue
-        ),
-        _buildActionCard(
-          'Stock Check',
-          Icons.search_rounded,
-          const Color(0xFF9B59B6), // Purple
-        ),
-        _buildActionCard(
-          'View Reports',
-          Icons.analytics_rounded,
-          const Color(0xFFE74C3C), // Red
-        ),
-      ],
-    );
-  }
-
-  // Individual quick action card
-  Widget _buildActionCard(String title, IconData icon, Color color) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: InkWell(
-        onTap: () {
-          print('$title tapped'); // TODO: Implement action
-        },
-        borderRadius: BorderRadius.circular(12), // Rounded corners for tap area
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.1), // Light background for icon
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, color: color, size: 24),
-              ),
-              const SizedBox(height: 12), // Spacing
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF2C3E50), // Dark text
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
+  Widget _buildActionItem(String label, IconData icon, Color color) {
+    return GestureDetector(
+      onTap: () {
+        // TODO: Navigate to specific screen
+      },
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 20),
           ),
-        ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w500),
+            textAlign: TextAlign.center,
+            maxLines: 2,
+          ),
+        ],
       ),
     );
   }
 
-  // Recent activity section
-  Widget _buildRecentActivity() {
+  Widget _buildRecentActivity(List recentSales) {
+    if (recentSales.isEmpty) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: Center(
+            child: Text(
+              'No recent activity',
+              style: TextStyle(color: AppColors.darkGrey),
+            ),
+          ),
+        ),
+      );
+    }
+
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -409,108 +505,59 @@ class DashboardScreen extends StatelessWidget {
           children: [
             const Row(
               children: [
-                Icon(Icons.history_rounded, color: Color(0xFF27AE60)), // History icon
-                SizedBox(width: 8), // Spacing
+                Icon(Icons.history_rounded, color: AppColors.primaryGreen),
+                SizedBox(width: 8),
                 Text(
                   'Recent Activity',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF2C3E50),
+                    color: AppColors.darkText,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16), // Spacing
-            _buildActivityItem('Paracetamol 500mg', 'Sale completed', 'UGX 3,000', Icons.sell_rounded),
-            _buildActivityItem('Amoxicillin 250mg', 'Low stock alert', '12 units left', Icons.warning_amber_rounded),
-            _buildActivityItem('Vitamin C 1000mg', 'New stock added', '50 units', Icons.inventory_2_rounded),
-            _buildActivityItem('Dr. Mugisha', 'Prescription received', '2 items', Icons.description),
+            const SizedBox(height: 16),
+            ...recentSales.take(5).map((sale) => _buildActivityItem(sale)),
           ],
         ),
       ),
     );
   }
 
-  // Individual activity item in the list
-  Widget _buildActivityItem(String title, String subtitle, String value, IconData icon) {
+  Widget _buildActivityItem(Map<String, dynamic> sale) {
     return ListTile(
-      contentPadding: EdgeInsets.zero, // Remove default padding
+      contentPadding: EdgeInsets.zero,
       leading: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: const Color(0xFF27AE60).withOpacity(0.1), // Light green background
+          color: AppColors.primaryGreen.withOpacity(0.1),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Icon(icon, color: const Color(0xFF27AE60), size: 20),
+        child: const Icon(Icons.sell_rounded, color: AppColors.primaryGreen, size: 20),
       ),
       title: Text(
-        title,
+        sale['customer']?['name'] ?? 'Guest',
         style: const TextStyle(
           fontSize: 14,
           fontWeight: FontWeight.w600,
-          color: Color(0xFF2C3E50),
+          color: AppColors.darkText,
         ),
       ),
       subtitle: Text(
-        subtitle,
+        'Sale completed • ${Helpers.formatDate(sale['created_at'])}',
         style: TextStyle(
           fontSize: 12,
-          color: Colors.grey[600],
+          color: AppColors.darkGrey,
         ),
       ),
       trailing: Text(
-        value,
+        'UGX ${Helpers.formatNumber(sale['total'])}',
         style: const TextStyle(
           fontSize: 12,
           fontWeight: FontWeight.w600,
-          color: Color(0xFF27AE60), // Green value text
+          color: AppColors.primaryGreen,
         ),
-      ),
-    );
-  }
-}
-
-// Placeholder screen for Inventory tab
-class InventoryScreen extends StatelessWidget {
-  const InventoryScreen({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: Text(
-        'Inventory Management',
-        style: TextStyle(fontSize: 24, color: Color(0xFF2C3E50)),
-      ),
-    );
-  }
-}
-
-// Placeholder screen for Sales tab
-class SalesScreen extends StatelessWidget {
-  const SalesScreen({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: Text(
-        'Point of Sale',
-        style: TextStyle(fontSize: 24, color: Color(0xFF2C3E50)),
-      ),
-    );
-  }
-}
-
-// Placeholder screen for Prescriptions tab
-class PrescriptionScreen extends StatelessWidget {
-  const PrescriptionScreen({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: Text(
-        'Prescription Management',
-        style: TextStyle(fontSize: 24, color: Color(0xFF2C3E50)),
       ),
     );
   }
