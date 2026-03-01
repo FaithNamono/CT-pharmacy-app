@@ -6,6 +6,7 @@ class DashboardProvider with ChangeNotifier {
   Map<String, dynamic>? _salesChartData;
   bool _isLoading = false;
   String? _error;
+  bool _isDisposed = false;
 
   // Getters
   Map<String, dynamic>? get dashboardData => _dashboardData;
@@ -15,30 +16,48 @@ class DashboardProvider with ChangeNotifier {
 
   // Load dashboard data
   Future<void> loadDashboard() async {
+    if (_isDisposed) return;
+    
     _isLoading = true;
     _error = null;
     notifyListeners();
 
-    final response = await ApiService.getDashboardData();
+    try {
+      final response = await ApiService.getDashboardData();
 
-    if (response['success'] == true) {
-      _dashboardData = response['dashboard'];
-      _error = null;
-    } else {
-      _error = response['message'] ?? 'Failed to load dashboard';
+      if (!_isDisposed) {
+        if (response['success'] == true) {
+          _dashboardData = response['dashboard'];
+          _error = null;
+        } else {
+          _error = response['message'] ?? 'Failed to load dashboard';
+        }
+
+        _isLoading = false;
+        notifyListeners();
+      }
+    } catch (e) {
+      if (!_isDisposed) {
+        _error = e.toString();
+        _isLoading = false;
+        notifyListeners();
+      }
     }
-
-    _isLoading = false;
-    notifyListeners();
   }
 
   // Load sales chart data
   Future<void> loadSalesChart({int days = 7}) async {
-    final response = await ApiService.getSalesChart(days);
+    if (_isDisposed) return;
+    
+    try {
+      final response = await ApiService.getSalesChart(days);
 
-    if (response['success'] == true) {
-      _salesChartData = response['chart'];
-      notifyListeners();
+      if (!_isDisposed && response['success'] == true) {
+        _salesChartData = response['chart'];
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error loading sales chart: $e');
     }
   }
 
@@ -99,15 +118,22 @@ class DashboardProvider with ChangeNotifier {
 
   // Refresh dashboard
   Future<void> refreshDashboard() async {
-    await Future.wait([
-      loadDashboard(),
-      loadSalesChart(),
-    ]);
+    if (_isDisposed) return;
+    await loadDashboard();
+    await loadSalesChart();
   }
 
   // Clear error
   void clearError() {
-    _error = null;
-    notifyListeners();
+    if (!_isDisposed) {
+      _error = null;
+      notifyListeners();
+    }
+  }
+
+  @override
+  void dispose() {
+    _isDisposed = true;
+    super.dispose();
   }
 }

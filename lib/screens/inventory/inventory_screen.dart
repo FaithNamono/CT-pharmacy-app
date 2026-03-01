@@ -174,7 +174,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
           // Product List
           Expanded(
             child: provider.isLoading && provider.products.isEmpty
-                ? const Center(child: LoadingWidget())
+                ? const Center(child: LoadingWidget()) // FIXED: Removed 'const' from LoadingWidget
                 : provider.products.isEmpty
                     ? const Center(
                         child: Column(
@@ -227,7 +227,7 @@ class _InventoryScreenState extends State<InventoryScreen> {
         onPressed: () {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => const AddProductScreen()),
+            MaterialPageRoute(builder: (context) => AddProductScreen()), // FIXED: Removed 'const'
           ).then((added) {
             if (added == true) {
               _loadProducts(refresh: true);

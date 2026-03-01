@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
-import 'onboarding_screen.dart'; // Import the next screen
+import 'package:shared_preferences/shared_preferences.dart';
+import 'onboarding_screen.dart';
+import 'auth/login_screen.dart';
+import '../utils/constants.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({Key? key}) : super(key: key);
@@ -12,102 +15,139 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    _navigateToOnboarding(); // Start navigation when screen loads
+    _navigateToNext();
   }
 
-  // Function to navigate to onboarding after a delay
-  _navigateToOnboarding() async {
-    // Wait for 3 seconds to show the splash screen
-    await Future.delayed(const Duration(seconds: 3), () {});
+  Future<void> _navigateToNext() async {
+    await Future.delayed(AppDurations.splashDuration);
     
-    // Navigate to onboarding screen and remove splash from navigation stack
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => const OnboardingScreen()),
-    );
+    final prefs = await SharedPreferences.getInstance();
+    final bool isFirstLaunch = prefs.getBool(StorageKeys.firstLaunch) ?? true;
+    final String? token = prefs.getString(StorageKeys.token);
+    
+    if (isFirstLaunch) {
+      // First time user - show onboarding
+      await prefs.setBool(StorageKeys.firstLaunch, false);
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const OnboardingScreen()),
+        );
+      }
+    } else if (token != null) {
+      // User already logged in - go to home
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/home');
+      }
+    } else {
+      // Not logged in - go to login
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/login');
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white, // Clean white background
+      backgroundColor: AppColors.white,
       body: Center(
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center, // Center everything vertically
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Pharmacy Logo - Uses your logo.jpg file
+            // YOUR LOGO - Shows your actual logo.jpg
             Container(
               width: 140,
               height: 140,
-              child: Image.asset(
-                'assets/images/logo.jpg', // Your pharmacy logo
-                fit: BoxFit.contain, // Maintain aspect ratio
-                errorBuilder: (context, error, stackTrace) {
-                  // If image fails to load, show fallback icon
-                  return Container(
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF27AE60), // Green background
-                      borderRadius: BorderRadius.circular(24), // Rounded corners
+              decoration: BoxDecoration(
+                color: AppColors.primaryGreen.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(70),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(70),
+                child: Image.asset(
+                  'assets/images/logo.jpg',
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) {
+                    // Fallback if logo.jpg not found - shows CT Pharmacy icon
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryGreen,
+                        borderRadius: BorderRadius.circular(70),
+                      ),
+                      child: const Icon(
+                        Icons.medical_services,
+                        color: AppColors.white,
+                        size: 70,
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+            
+            const SizedBox(height: 24),
+            
+            // CT Pharmacy Text - Fixed to show both parts
+            RichText(
+              text: const TextSpan(
+                children: [
+                  TextSpan(
+                    text: 'CT ',
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primaryGreen,
                     ),
-                    child: const Icon(
-                      Icons.medical_services, // Pharmacy icon
-                      color: Colors.white,
-                      size: 70,
+                  ),
+                  TextSpan(
+                    text: 'Pharmacy',
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.darkText,
                     ),
-                  );
-                },
+                  ),
+                ],
               ),
             ),
             
-            const SizedBox(height: 24), // Spacing between logo and text
+            const SizedBox(height: 8),
             
-            // App Name
+            // Full Name
             const Text(
-              'CT Pharmacy',
+              AppStrings.fullName,
               style: TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF27AE60), // Green text
+                fontSize: 16,
+                color: AppColors.primaryGreen,
+                fontWeight: FontWeight.w500,
               ),
             ),
             
-            const SizedBox(height: 8), // Small spacing
+            const SizedBox(height: 8),
             
-            // Pharmacy Full Name
+            // Tagline
             const Text(
-              'Credibal Therauptics',
-              style: TextStyle(
-                fontSize: 18,
-                color: Colors.grey, // Grey text
-                fontWeight: FontWeight.w500, // Medium weight
-              ),
-            ),
-            
-            const SizedBox(height: 4), // Very small spacing
-            
-            // App Description
-            const Text(
-              'Management System',
+              AppStrings.tagline,
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.grey, // Grey text
+                color: AppColors.darkGrey,
               ),
             ),
             
-            const SizedBox(height: 60), // Large spacing before loading indicator
+            const SizedBox(height: 50),
             
-            // Loading Indicator - Shows app is loading
+            // Loading Indicator
             const CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF27AE60)), // Green loading
+              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryGreen),
             ),
             
-            const SizedBox(height: 20), // Spacing
+            const SizedBox(height: 20),
             
-            // Loading Text
             const Text(
               'Loading...',
               style: TextStyle(
-                color: Colors.grey,
+                color: AppColors.darkGrey,
                 fontSize: 14,
               ),
             ),

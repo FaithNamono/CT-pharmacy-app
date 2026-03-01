@@ -30,32 +30,39 @@ class AppColors {
 }
 
 class ApiConstants {
-  // Base URL - Change this to your actual backend IP
-  static const String baseUrl = 'http://10.0.2.2:8000/api/v1'; // For Android emulator
-  // static const String baseUrl = 'http://127.0.0.1:8000/api/v1'; // For iOS simulator
-  // static const String baseUrl = 'http://192.168.1.100:8000/api/v1'; // For physical device - replace with your PC's IP
+  // FOR WEB/CHROME - use 127.0.0.1
+  static const String baseUrl = 'http://127.0.0.1:8000/api';
   
-  // Auth Endpoints
-  static const String login = '$baseUrl/login';
-  static const String register = '$baseUrl/register';
-  static const String logout = '$baseUrl/logout';
-  static const String profile = '$baseUrl/profile';
+  // For iOS Simulator
+  // static const String baseUrl = 'http://127.0.0.1:8000/api';
   
-  // Product Endpoints
-  static const String products = '$baseUrl/products';
-  static const String productStats = '$baseUrl/products/stats';
+  // For Physical Device - use your PC's ACTUAL IP address
+  // Example: static const String baseUrl = 'http://192.168.1.100:8000/api';
   
-  // Sale Endpoints
-  static const String sales = '$baseUrl/sales';
-  static const String salesSummary = '$baseUrl/sales/summary';
+  // Test endpoint
+  static String get test => '$baseUrl/test';
   
-  // Prescription Endpoints
-  static const String prescriptions = '$baseUrl/prescriptions';
-  static const String prescriptionSummary = '$baseUrl/prescriptions/summary/overview';
+  // Auth Endpoints (v1 prefix)
+  static String get login => '$baseUrl/v1/login';
+  static String get register => '$baseUrl/v1/register';
+  static String get logout => '$baseUrl/v1/logout';
+  static String get profile => '$baseUrl/v1/profile';
   
-  // Dashboard Endpoints
-  static const String dashboard = '$baseUrl/dashboard';
-  static const String salesChart = '$baseUrl/dashboard/charts/sales';
+  // Product Endpoints (v1 prefix)
+  static String get products => '$baseUrl/v1/products';
+  static String get productStats => '$baseUrl/v1/products/stats';
+  
+  // Sale Endpoints (v1 prefix)
+  static String get sales => '$baseUrl/v1/sales';
+  static String get salesSummary => '$baseUrl/v1/sales/summary';
+  
+  // Prescription Endpoints (v1 prefix)
+  static String get prescriptions => '$baseUrl/v1/prescriptions';
+  static String get prescriptionSummary => '$baseUrl/v1/prescriptions/summary/overview';
+  
+  // Dashboard Endpoints (v1 prefix)
+  static String get dashboard => '$baseUrl/v1/dashboard';
+  static String get salesChart => '$baseUrl/v1/dashboard/charts/sales';
 }
 
 class StorageKeys {

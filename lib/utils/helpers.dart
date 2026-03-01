@@ -1,4 +1,6 @@
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'constants.dart';
 
 class Helpers {
   static String formatCurrency(double amount, {String symbol = 'UGX '}) {
@@ -66,4 +68,24 @@ class Helpers {
         return const Color(0xFF828282);
     }
   }
+     // Add these methods to your existing Helpers class
+
+static bool isToday(DateTime date) {
+  final now = DateTime.now();
+  return date.year == now.year && 
+         date.month == now.month && 
+         date.day == now.day;
+}
+
+static bool isThisWeek(DateTime date) {
+  final now = DateTime.now();
+  final startOfWeek = now.subtract(Duration(days: now.weekday - 1));
+  final endOfWeek = startOfWeek.add(const Duration(days: 7));
+  return date.isAfter(startOfWeek) && date.isBefore(endOfWeek);
+}
+
+static bool isThisMonth(DateTime date) {  
+  final now = DateTime.now();
+  return date.year == now.year && date.month == now.month;
+}
 }

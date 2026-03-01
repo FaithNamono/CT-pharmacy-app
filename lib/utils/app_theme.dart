@@ -101,14 +101,18 @@ class AppTheme {
         borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: AppColors.warningRed, width: 1),
       ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: AppColors.warningRed, width: 2),
+      ),
       labelStyle: const TextStyle(color: AppColors.darkGrey),
       hintStyle: const TextStyle(color: AppColors.mediumGrey),
       prefixIconColor: AppColors.primaryGreen,
       suffixIconColor: AppColors.primaryGreen,
     ),
     
-    // Card Theme
-    cardTheme: CardTheme(
+    // Card Theme - FIXED: Changed from CardTheme to CardThemeData
+    cardTheme: CardThemeData(
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
@@ -183,7 +187,7 @@ class AppTheme {
       space: 20,
     ),
     
-    // Chip Theme
+    // Chip Theme - FIXED: Using proper ChipThemeData
     chipTheme: ChipThemeData(
       backgroundColor: AppColors.lightGrey,
       selectedColor: AppColors.primaryGreen,
@@ -192,10 +196,13 @@ class AppTheme {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
       ),
+      brightness: Brightness.light,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      iconTheme: const IconThemeData(size: 16, color: AppColors.darkGrey),
     ),
     
-    // Dialog Theme
-    dialogTheme: DialogTheme(
+    // Dialog Theme - FIXED: Changed from DialogTheme to DialogThemeData
+    dialogTheme: DialogThemeData(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
       ),
